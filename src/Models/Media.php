@@ -238,25 +238,6 @@ class Media extends Model
     }
 
 
-    // HANDLING CRUD
-    public function handleUpdate(array $request)
-    {
-        return DB::transaction(function () use ($request) {
-            if (isset($request['file_name']) && $this->file_name !== $request['file_name']) {
-                // slugs the name, moves the file and saves the new file_name.
-                MediaFacade::renameMedia($this, $request['file_name']);
-            }
-            // array_key_exists: lets the caller clear alt/description by sending null.
-            if (array_key_exists('alt', $request)) $this->alt = $request['alt'];
-            if (array_key_exists('description', $request)) $this->description = $request['description'];
-            $this->saveOrFail();
-
-            return $this;
-        });
-    }
-
-
-
     // OVERRIDES
     public function delete()
     {
