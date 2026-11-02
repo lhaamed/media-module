@@ -9,6 +9,13 @@ use lhaamed\MediaModule\Models\MediaThumbnail;
 use lhaamed\MediaModule\Services\MediaService;
 
 /**
+ * @method static int usedBytes(?string $disk = null)
+ * @method static int totalBytes()
+ * @method static string totalBytesReadable()
+ * @method static string usedBytesReadable(?string $disk = null)
+ * @method static int remainingBytes(?string $disk = null)
+ * @method static string remainingBytesReadable(?string $disk = null)
+ * @method static string formatBytes(int $bytes)
  * @method static Media upload(UploadedFile $file, array $options = [], ?string $disk = null)
  * @method static Media replace(UploadedFile $file, Media $media, array $options = [])
  * @method static MediaThumbnail|null generateThumbnail(Media $media, int $width, ?int $height = null)

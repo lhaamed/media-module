@@ -159,6 +159,50 @@ $media = MediaFacade::upload($request->file('file'), [
 ]);
 ```
 
+### Storage usage
+
+```php
+MediaFacade::usedBytes();          // originals + thumbnails across all disks, in bytes
+MediaFacade::usedBytes('media');   // only media stored on this disk, including its thumbnails
+```
+
+Returns an integer (`0` when empty) by summing recorded database `size` values.
+Uses the configured media and thumbnail models and their global scopes, except the
+package's `order` scope. Thumbnail disk filtering uses the parent `media` relation.
+This does not scan storage: missing files still count, and untracked files do not.
+No application settings model or consumer-specific code is required.
+
+Set the application's shared storage quota in `.env` as a non-negative integer in bytes:
+
+```dotenv
+MEDIA_TOTAL_BYTES=10737418240
+```
+
+```php
+MediaFacade::totalBytes();                 // 10737418240 (int)
+MediaFacade::totalBytesReadable();         // "10GB"
+MediaFacade::usedBytesReadable();          // e.g. "9.8MB", across all disks
+MediaFacade::usedBytesReadable('media');   // readable usage for one disk
+MediaFacade::remainingBytes();            // max(0, totalBytes() - usedBytes()), int
+MediaFacade::remainingBytesReadable();    // e.g. "10GB"
+MediaFacade::remainingBytes('media');     // shared quota minus this disk's usage
+MediaFacade::remainingBytesReadable('media'); // readable equivalent
+MediaFacade::formatBytes(1536);            // "1.5KB"
+```
+
+The quota is read via `config('media.total_bytes')`, supporting Laravel config caching.
+Republish or add `total_bytes` to an existing published `config/media.php`, then
+rebuild the config cache if enabled. An unset quota returns `0` / `"0B"`;
+this means unconfigured capacity, not an automatic upload limit. Invalid quota
+values throw `InvalidArgumentException`. The quota applies across disks and does
+not inspect physical disk capacity or enforce upload limits.
+Remaining capacity is clamped to zero when usage reaches or exceeds the quota,
+or when no capacity is configured. Without a disk argument it subtracts usage
+across all disks. With a disk argument it subtracts only that disk's usage from
+the same shared quota; it does not represent a separate per-disk capacity.
+Readable values use powers of 1024 with labels B, KB, MB, GB, TB, PB, EB,
+at most one decimal place, and no space or trailing `.0`.
+
 ### Attach to any model
 
 ```php

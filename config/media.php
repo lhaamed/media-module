@@ -25,6 +25,9 @@ return [
     */
     'disk' => env('MEDIA_DISK', 'media'),
 
+    // Application storage quota in bytes (0 means no capacity has been configured).
+    'total_bytes' => env('MEDIA_TOTAL_BYTES', 0),
+
     /*
     |--------------------------------------------------------------------------
     | Allowed disks

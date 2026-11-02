@@ -19,6 +19,88 @@ use Throwable;
 
 class MediaService
 {
+    /**
+     * Application storage quota in bytes, configured through MEDIA_TOTAL_BYTES.
+     * This is a shared quota across disks, not the physical partition capacity.
+     */
+    public function totalBytes(): int
+    {
+        $bytes = filter_var(config('media.total_bytes', 0), FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 0],
+        ]);
+
+        if ($bytes === false) {
+            throw new \InvalidArgumentException('media.total_bytes must be a non-negative integer in bytes.');
+        }
+
+        return $bytes;
+    }
+
+    public function totalBytesReadable(): string
+    {
+        return $this->formatBytes($this->totalBytes());
+    }
+
+    public function usedBytesReadable(?string $disk = null): string
+    {
+        return $this->formatBytes($this->usedBytes($disk));
+    }
+
+    /**
+     * Configured shared quota minus recorded usage, clamped to zero.
+     * With a disk, only that disk's usage is subtracted from the shared quota.
+     */
+    public function remainingBytes(?string $disk = null): int
+    {
+        return max(0, $this->totalBytes() - $this->usedBytes($disk));
+    }
+
+    public function remainingBytesReadable(?string $disk = null): string
+    {
+        return $this->formatBytes($this->remainingBytes($disk));
+    }
+
+    /**
+     * Formats bytes using 1024-byte units, rounded to at most one decimal place.
+     */
+    public function formatBytes(int $bytes): string
+    {
+        if ($bytes < 0) {
+            throw new \InvalidArgumentException('Bytes must be non-negative.');
+        }
+
+        $units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB'];
+        $value = $bytes;
+        $unit = 0;
+
+        while (round($value, 1) >= 1024 && $unit < count($units) - 1) {
+            $value /= 1024;
+            $unit++;
+        }
+
+        return rtrim(rtrim(number_format($value, 1, '.', ''), '0'), '.') . $units[$unit];
+    }
+
+    /**
+     * Total recorded bytes for originals and thumbnails, across all disks when null.
+     * Uses database sizes; does not inspect files on storage.
+     */
+    public function usedBytes(?string $disk = null): int
+    {
+        $media = MediaModels::media()::query()->withoutGlobalScope('order');
+        $thumbnails = MediaModels::thumbnail()::query()->withoutGlobalScope('order');
+
+        if ($disk !== null) {
+            $media->where($media->getModel()->qualifyColumn('disk'), $disk);
+            $thumbnails->whereHas('media', function ($query) use ($disk) {
+                $query->where($query->getModel()->qualifyColumn('disk'), $disk);
+            });
+        }
+
+        return (int) $media->sum($media->getModel()->qualifyColumn('size'))
+            + (int) $thumbnails->sum($thumbnails->getModel()->qualifyColumn('size'));
+    }
+
     // UPLOAD / REPLACE
 
     /**
